@@ -3,27 +3,25 @@ import numpy as np
 import torch
 import os
 from itertools import count
-import datetime
 
 from baselines.common.vec_env import SubprocVecEnv
 from baselines.common import set_global_seeds
-from Model import ActorCriticPCoady as ActorCritic
+from Model import ActorCritic_nature_cnn as ActorCritic
 from ppo import PPO
 
 
 
-modelpath = './ppo_model.pth'
+modelpath = './ppoCNN_model.pth'
 play_mode = False
 use_cuda = torch.cuda.is_available()
 device   = torch.device("cuda" if use_cuda else "cpu")
-num_envs = 2
-env_name = "gym_chrono.envs:chrono_ant-v0"
-#Options
+num_envs = 5
+env_name = "gym_chrono.envs:camera_obstacle_avoidance-v0"
 disp_plot = False
 hidden_size      = 256
 lr               = 3e-4
 # Steps per env
-num_steps        = 1000
+num_steps        = 100
 mini_batch_size  = num_steps/20
 ppo_epochs       = 8
 threshold_reward = 5000
@@ -62,12 +60,13 @@ if __name__ == "__main__":
     num_inputs  = envs.observation_space.shape[0]
     num_outputs = envs.action_space.shape[0]
 
-    model = ActorCritic(num_inputs, num_outputs).to(device)
+    model = ActorCritic([45,80], num_outputs).to(device)
     if os.path.isfile(modelpath):
         model.load_state_dict(torch.load(modelpath))
 
     ppo = PPO(model=model, envs = envs, device = device,  lr = lr, modelpath = modelpath)
-    ppo.ppo_train(num_steps, mini_batch_size, ppo_epochs,
+    if not play_mode:
+        ppo.ppo_train(num_steps, mini_batch_size, ppo_epochs,
                   max_frames, max_pol_updates,save_interval, increasing_length,
                   test_interval,do_test, threshold_reward, disp_plot, env)
 
@@ -75,12 +74,13 @@ if __name__ == "__main__":
     # <h1>Saving trajectories for GAIL</h1>
     max_expert_num = 50000
     num_steps = 0
-    expert_traj = []
+    #expert_traj = []
 
     for i_episode in count():
         if not play_mode:
             break
         state = env.reset()
+        env.play_mode = True
         done = False
         total_reward = 0
 
@@ -91,7 +91,7 @@ if __name__ == "__main__":
             next_state, reward, done, _ = env.step(action)
             state = next_state
             total_reward += reward
-            expert_traj.append(np.hstack([state, action]))
+            #expert_traj.append(np.hstack([state, action]))
             num_steps += 1
             env.render()
 
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
         if num_steps >= max_expert_num:
             break
-
+"""
     if play_mode:
 
         expert_traj = np.stack(expert_traj)
@@ -107,3 +107,4 @@ if __name__ == "__main__":
         print(expert_traj.shape)
         print()
         np.save("expert_traj.npy", expert_traj)
+"""
