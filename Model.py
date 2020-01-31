@@ -139,12 +139,12 @@ class MultiSensorSimple(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             Flatten(),
             nn.ReLU(),
-            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs * 10),
+            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs * 5),
 
         )
-        self.actor_fc0 = nn.Linear(sens2_shape, num_outputs * 10)
-        self.actor_fc1 = nn.Linear(num_outputs * 20, num_outputs * 10)
-        self.actor_fc2 = nn.Linear(num_outputs * 10, num_outputs)
+        self.actor_fc0 = nn.Linear(sens2_shape, num_outputs * 5)
+        self.actor_fc1 = nn.Linear(num_outputs * 10, num_outputs * 5)
+        self.actor_fc2 = nn.Linear(num_outputs * 5, num_outputs)
 
         self.critic_cnn = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=8, stride=4),
@@ -168,18 +168,18 @@ class MultiSensorSimple(nn.Module):
 
     def forward(self, data):
         x0 = (data[0].permute(0, 3, 1, 2) / 255)
-        x1 = self.actor_cnn(x0).view(-1)
+        x1 = self.actor_cnn(x0)#.view(-1)
         x2 = self.actor_fc0(data[1])
-        x = torch.cat((x1, x2), dim=0)
+        x = torch.cat((x1, x2), dim=1)
         x = nn.functional.relu(self.actor_fc1(x))
         x = self.actor_fc2(x)
-        mu = torch.tanh(x).view(1,-1)
+        mu = torch.tanh(x)
         std = self.log_std.exp().expand_as(mu)
         dist = Normal(mu, std)
 
-        y1 = self.critic_cnn(x0).view(-1)
+        y1 = self.critic_cnn(x0)#.view(-1)
         y2 = self.critic_fc0(data[1])
-        y = torch.cat((y1, y2), dim=0)
+        y = torch.cat((y1, y2), dim=1)
         y = nn.functional.relu(self.critic_fc1(y))
         value = self.critic_fc2(y)
 

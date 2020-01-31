@@ -21,3 +21,13 @@ def test_env(env, model, device, vis=False):
         if vis: env.render()
         total_reward += reward
     return total_reward
+
+def cat_tuple_ob(states, tuple_len):
+    l1 = []
+    for i in range(tuple_len):
+        l2 = []
+        for j in range(len(states)):
+            l2.append(states[j][i][:])
+        l1.append(l2)
+    state_l = [torch.cat(s) for s in l1]
+    return state_l

@@ -12,13 +12,15 @@ class PPO:
         envs,
         device,
         modelpath,
-        lr = 3e-4):
+        lr = 3e-4,
+        tuple_ob = False):
 
         self.envs = envs
         self.optimizer = optim.Adam(model.parameters(), lr=lr)
         self.model = model
         self.modelpath = modelpath
         self.device = device
+        self.tuple_ob = tuple_ob
 
     def compute_gae(self, next_value, rewards, masks, values, gamma=0.99, tau=0.95):
         values = values + [next_value]
@@ -33,11 +35,14 @@ class PPO:
 
 
     def ppo_iter(self, mini_batch_size, states, actions, log_probs, returns, advantage):
-        batch_size = states.size(0)
+        batch_size = returns.size(0)
         ids = np.random.permutation(batch_size)
         ids = np.split(ids, batch_size // mini_batch_size)
         for i in range(len(ids)):
-            yield states[ids[i], :], actions[ids[i], :], log_probs[ids[i], :], returns[ids[i], :], advantage[ids[i], :]
+            if self.tuple_ob:
+                yield [s[ids[i], :] for s in states], actions[ids[i], :], log_probs[ids[i], :], returns[ids[i], :], advantage[ids[i], :]
+            else:
+                yield states[ids[i], :], actions[ids[i], :], log_probs[ids[i], :], returns[ids[i], :], advantage[ids[i], :]
 
 
 
@@ -81,7 +86,15 @@ class PPO:
             entropy = 0
 
             for _ in range(num_steps):
-                state = torch.FloatTensor(state).to(self.device)
+                if self.tuple_ob:
+                    arr_l = []
+                    for i in range(state.shape[1]):
+                        arr = np.stack( state[:,i][:] )
+                        arr_l.append(arr)
+
+                    state = [torch.FloatTensor(arr).to(self.device) for arr in arr_l]
+                else:
+                    state = torch.FloatTensor(state).to(self.device)
                 dist, value = self.model(state)
 
                 action = dist.sample()
@@ -108,15 +121,25 @@ class PPO:
                         Utils.plot(frame_idx, test_rewards)
                     if test_reward > threshold_reward: early_stop = True
 
+            if self.tuple_ob:
+                arr_l = []
+                for i in range(next_state.shape[1]):
+                    arr = np.stack(next_state[:, i][:])
+                    arr_l.append(arr)
 
-            next_state = torch.FloatTensor(next_state).to(self.device)
+                next_state = [torch.FloatTensor(arr).to(self.device) for arr in arr_l]
+            else:
+                next_state = torch.FloatTensor(next_state).to(self.device)
             _, next_value = self.model(next_state)
             returns = self.compute_gae(next_value, rewards, masks, values)
 
             returns   = torch.cat(returns).detach()
             log_probs = torch.cat(log_probs).detach()
             values    = torch.cat(values).detach()
-            states    = torch.cat(states)
+            if self.tuple_ob:
+                states    = Utils.cat_tuple_ob(states, state.shape[1])
+            else:
+                states    = torch.cat(states)
             actions   = torch.cat(actions)
             advantage = returns - values
 
