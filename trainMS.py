@@ -86,7 +86,10 @@ if __name__ == "__main__":
         total_reward = 0
 
         while not done:
-            state = torch.FloatTensor(state).unsqueeze(0).to(device)
+            if tuple_ob:
+                state = [torch.FloatTensor(s).unsqueeze(0).to(device) for s in state]
+            else:
+                state = torch.FloatTensor(state).unsqueeze(0).to(device)
             dist, _ = model(state)
             action = dist.sample().cpu().numpy()[0]
             next_state, reward, done, _ = env.step(action)
