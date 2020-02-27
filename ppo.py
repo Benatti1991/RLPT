@@ -68,13 +68,14 @@ class PPO:
 
     def ppo_train(self, num_steps, mini_batch_size, ppo_epochs = 8,
                   max_frames = np.inf, max_pol_updates = 200,save_interval = 10, increasing_length = 0,
-                  test_interval = 1e12,do_test = False,threshold_reward = 5000, disp_plot = False, env = None):
+                  test_interval = 40, savepath='./'):
 
         frame_idx = 0
         pol_updates = 0
         test_rewards = []
         early_stop = False
         state = self.envs.reset()
+        mean_rewards = []
 
         while frame_idx < max_frames and pol_updates < max_pol_updates and not early_stop:
             log_probs = []
@@ -114,12 +115,9 @@ class PPO:
                 state = next_state
                 frame_idx += 1
 
-                if frame_idx % test_interval == 0 and do_test:
-                    test_reward = np.mean([Utils.test_env(env, self.model, self.device) for _ in range(10)])
-                    test_rewards.append(test_reward)
-                    if disp_plot:
-                        Utils.plot(frame_idx, test_rewards)
-                    if test_reward > threshold_reward: early_stop = True
+            if frame_idx % test_interval == 0:
+                mean_reward = Utils.CalcMeanRew(rewards, masks)
+                mean_rewards.append(mean_reward)
 
             if self.tuple_ob:
                 arr_l = []
@@ -151,3 +149,4 @@ class PPO:
                 torch.save(self.model.state_dict(), self.modelpath)
                 print("Policy Saved after " + str(pol_updates) + "updates \n")
                 print(datetime.datetime.now().time())
+            np.save(savepath+'rew.dat', np.asarray(mean_rewards))

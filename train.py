@@ -15,7 +15,7 @@ modelpath = './ppoCNN_model.pth'
 play_mode = False
 use_cuda = torch.cuda.is_available()
 device   = torch.device("cuda" if use_cuda else "cpu")
-num_envs = 5
+num_envs = 2
 env_name = "gym_chrono.envs:camera_obstacle_avoidance-v0"
 disp_plot = False
 hidden_size      = 256
@@ -25,12 +25,12 @@ num_steps        = 100
 mini_batch_size  = num_steps/20
 ppo_epochs       = 8
 threshold_reward = 5000
-save_interval = 10
+save_interval = 100
 max_frames = np.inf
-max_pol_updates = 200
+max_pol_updates = 60
 test_interval = 0.5
-test_interval = 1e12
-do_test = False
+test_interval = 1
+do_test = True
 increasing_length = 0
 
 def make_env(env_id, rank, seed=0):
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     if not play_mode:
         ppo.ppo_train(num_steps, mini_batch_size, ppo_epochs,
                   max_frames, max_pol_updates,save_interval, increasing_length,
-                  test_interval,do_test, threshold_reward, disp_plot, env)
+                  test_interval, savepath='./Monitor/')
 
 
     # <h1>Saving trajectories for GAIL</h1>
@@ -95,7 +95,7 @@ if __name__ == "__main__":
             num_steps += 1
             env.render()
 
-        print("episode:", i_episode, "reward:", total_reward)
+        print("episode:", i_episode, "reward:", total_reward, "steps:", num_steps)
 
         if num_steps >= max_expert_num:
             break

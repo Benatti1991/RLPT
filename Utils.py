@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import torch
+import numpy as np
 
 def plot(frame_idx, rewards):
     plt.figure(figsize=(20,5))
@@ -8,19 +9,17 @@ def plot(frame_idx, rewards):
     plt.plot(rewards)
     plt.show()
 
-def test_env(env, model, device, vis=False):
-    state = env.reset()
-    if vis: env.render()
-    done = False
-    total_reward = 0
-    while not done:
-        state = torch.FloatTensor(state).unsqueeze(0).to(device)
-        dist, _ = model(state)
-        next_state, reward, done, _ = env.step(dist.sample().cpu().numpy()[0])
-        state = next_state
-        if vis: env.render()
-        total_reward += reward
-    return total_reward
+def CalcMeanRew(rew, not_dones):
+    rewarr = np.asarray([line.cpu().numpy() for line in rew])
+    not_donearr = np.asarray([line.cpu().numpy() for line in not_dones])
+    donearr = np.ones(not_donearr.shape) - not_donearr
+    rewsum = 0
+    for i in range(donearr.shape[1]):
+        done_ind = np.nonzero(donearr[:,i,:])
+        last_done = np.amax(done_ind[0])
+        rewsum += np.sum( rewarr[0:last_done,i,:] )
+    mean_reward = rewsum / np.count_nonzero(donearr)
+    return mean_reward
 
 def cat_tuple_ob(states, tuple_len):
     l1 = []
