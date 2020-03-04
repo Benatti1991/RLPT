@@ -25,7 +25,7 @@ class ActorCritic(nn.Module):
             nn.Tanh()
         )
         self.log_std = nn.Parameter(torch.ones(1, num_outputs) * std)
-        self.log_std = self.log_std.clamp(-20, -1)
+        #self.log_std = self.log_std.clamp(-20, -1)
 
         self.apply(init_weights)
 
@@ -95,9 +95,8 @@ class ActorCritic_nature_cnn(ActorCritic):
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             Flatten(),
-            nn.ReLU(),
             nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs),
-            nn.Tanh()
+            nn.ReLU()
         )
 
         self.critic = nn.Sequential(
@@ -118,7 +117,7 @@ class ActorCritic_nature_cnn(ActorCritic):
 
     def forward(self, x):
         # Input shape is [batch, Height, Width, RGB] Torch wants [batch, RGB, Height, Width]. Must Permute
-        x = (x.permute(0,3,1,2)/255)
+        x = (x.permute(0,3,1,2)/255.0)
         value = self.critic(x)
         mu = self.actor(x)
         std = self.log_std.exp().expand_as(mu)

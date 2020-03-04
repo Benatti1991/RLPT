@@ -149,4 +149,4 @@ class PPO:
                 torch.save(self.model.state_dict(), self.modelpath)
                 print("Policy Saved after " + str(pol_updates) + "updates \n")
                 print(datetime.datetime.now().time())
-            np.save(savepath+'rew.dat', np.asarray(mean_rewards))
+            np.save(savepath+'rew', np.asarray(mean_rewards))

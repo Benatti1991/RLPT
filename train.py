@@ -11,25 +11,24 @@ from ppo import PPO
 
 
 
-modelpath = './ppoCNN_model.pth'
+modelpath = './ppoCNN_track.pth'
 play_mode = False
 use_cuda = torch.cuda.is_available()
 device   = torch.device("cuda" if use_cuda else "cpu")
 num_envs = 2
-env_name = "gym_chrono.envs:camera_obstacle_avoidance-v0"
+env_name = "gym_chrono.envs:camera_obstacle_avoidance_custom-v0"
 disp_plot = False
 hidden_size      = 256
 lr               = 3e-4
 # Steps per env
 num_steps        = 100
 mini_batch_size  = num_steps/20
-ppo_epochs       = 8
+ppo_epochs       = 6
 threshold_reward = 5000
-save_interval = 100
+save_interval = 20
 max_frames = np.inf
-max_pol_updates = 60
-test_interval = 0.5
-test_interval = 1
+max_pol_updates = 200
+test_interval = 20
 do_test = True
 increasing_length = 0
 
@@ -91,6 +90,7 @@ if __name__ == "__main__":
             next_state, reward, done, _ = env.step(action)
             state = next_state
             total_reward += reward
+            print(str(total_reward))
             #expert_traj.append(np.hstack([state, action]))
             num_steps += 1
             env.render()
