@@ -11,11 +11,11 @@ from ppo import PPO
 
 
 
-modelpath = './ppoCNN_track.pth'
-play_mode = False
+modelpath = './ppoCNN_ring.pth'
+play_mode = True
 use_cuda = torch.cuda.is_available()
 device   = torch.device("cuda" if use_cuda else "cpu")
-num_envs = 2
+num_envs = 1
 env_name = "gym_chrono.envs:camera_obstacle_avoidance_custom-v0"
 disp_plot = False
 hidden_size      = 256
