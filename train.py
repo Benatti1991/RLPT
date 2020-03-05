@@ -12,18 +12,18 @@ from ppo import PPO
 
 
 modelpath = './ppoCNN_ring.pth'
-play_mode = True
+play_mode = False
 use_cuda = torch.cuda.is_available()
 device   = torch.device("cuda" if use_cuda else "cpu")
-num_envs = 1
+num_envs = 2
 env_name = "gym_chrono.envs:camera_obstacle_avoidance_custom-v0"
 disp_plot = False
 hidden_size      = 256
-lr               = 3e-4
+lr               = 1e-4
 # Steps per env
 num_steps        = 100
-mini_batch_size  = num_steps/20
-ppo_epochs       = 6
+mini_batch_size  = 1#num_steps/50
+ppo_epochs       = 30
 threshold_reward = 5000
 save_interval = 20
 max_frames = np.inf
