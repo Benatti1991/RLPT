@@ -22,7 +22,7 @@ hidden_size      = 256
 lr               = 1e-4
 # Steps per env
 num_steps        = 100
-mini_batch_size  = 1#num_steps/50
+mini_batch_size  = num_steps/50
 ppo_epochs       = 30
 threshold_reward = 5000
 save_interval = 20

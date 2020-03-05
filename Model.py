@@ -7,6 +7,10 @@ def init_weights(m):
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
         nn.init.normal_(m.weight, mean=0., std=0.1)
         nn.init.constant_(m.bias, 0.1)
+    if isinstance(m, nn.Conv2d):
+        #torch.nn.init.xavier_uniform(m.weight)
+        nn.init.normal_(m.weight)
+        nn.init.constant_(m.bias, 0.0)
 
 class ActorCritic(nn.Module):
     def __init__(self, num_inputs, num_outputs, hidden_size, std=0.0):
