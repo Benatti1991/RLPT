@@ -4,12 +4,11 @@ from torch.distributions import Normal
 import copy
 
 def init_weights(m):
-    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+    if isinstance(m, nn.Linear) :
         nn.init.normal_(m.weight, mean=0., std=0.1)
-        nn.init.constant_(m.bias, 0.1)
+        nn.init.constant_(m.bias, 0.0)
     if isinstance(m, nn.Conv2d):
-        #torch.nn.init.xavier_uniform(m.weight)
-        nn.init.normal_(m.weight)
+        nn.init.xavier_normal_(m.weight)
         nn.init.constant_(m.bias, 0.0)
 
 class ActorCritic(nn.Module):
@@ -98,9 +97,10 @@ class ActorCritic_nature_cnn(ActorCritic):
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            nn.ReLU(),
             Flatten(),
             nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs),
-            nn.ReLU()
+            nn.Tanh()
         )
 
         self.critic = nn.Sequential(
@@ -109,8 +109,8 @@ class ActorCritic_nature_cnn(ActorCritic):
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
-            Flatten(),
             nn.ReLU(),
+            Flatten(),
             nn.Linear(fc_size[0] * fc_size[1] * 64, 1)
         )
 
@@ -121,9 +121,9 @@ class ActorCritic_nature_cnn(ActorCritic):
 
     def forward(self, x):
         # Input shape is [batch, Height, Width, RGB] Torch wants [batch, RGB, Height, Width]. Must Permute
-        x = (x.permute(0,3,1,2)/255.0)
+        x = ((x-127)/255).permute(0,3,1,2)
         value = self.critic(x)
-        mu = self.actor(x)
+        mu = self.actor(x)#.mul_(2)).add_(-1)
         std = self.log_std.exp().expand_as(mu)
         dist = Normal(mu, std)
         return dist, value

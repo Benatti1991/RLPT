@@ -22,12 +22,12 @@ hidden_size      = 256
 lr               = 1e-4
 # Steps per env
 num_steps        = 100
-mini_batch_size  = num_steps/50
-ppo_epochs       = 30
+mini_batch_size  = num_steps/20
+ppo_epochs       = 8
 threshold_reward = 5000
 save_interval = 20
 max_frames = np.inf
-max_pol_updates = 200
+max_pol_updates = 600
 test_interval = 20
 do_test = True
 increasing_length = 0
