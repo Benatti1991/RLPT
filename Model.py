@@ -6,7 +6,7 @@ import copy
 def init_weights(m):
     if isinstance(m, nn.Linear) :
         nn.init.normal_(m.weight, mean=0., std=0.1)
-        nn.init.constant_(m.bias, 0.0)
+        nn.init.constant_(m.bias, 0.1)
     if isinstance(m, nn.Conv2d):
         nn.init.xavier_normal_(m.weight)
         nn.init.constant_(m.bias, 0.0)
@@ -72,6 +72,7 @@ class ActorCriticPCoady(ActorCritic):
         self.apply(init_weights)
 
 # From baselines Policies.py , line 15
+
 def outputSize(in_size, kernel_size, stride, padding):
     conv_size = copy.deepcopy(in_size)
     for i in range(len(kernel_size)):
