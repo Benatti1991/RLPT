@@ -4,7 +4,7 @@ from torch.distributions import Normal
 import copy
 
 def init_weights(m):
-    if isinstance(m, nn.Linear) :
+    if isinstance(m, nn.Linear):
         nn.init.normal_(m.weight, mean=0., std=0.1)
         nn.init.constant_(m.bias, 0.1)
     if isinstance(m, nn.Conv2d):
@@ -41,7 +41,7 @@ class ActorCritic(nn.Module):
 
 
 class ActorCriticPCoady(ActorCritic):
-    def __init__(self, num_inputs, num_outputs, std=-2.3):
+    def __init__(self, num_inputs, num_outputs, std=-.5):
         nn.Module.__init__(self)
         h1 = num_inputs * 10
         h3 = num_outputs * 10
@@ -88,7 +88,7 @@ class Flatten(torch.nn.Module):
 
 class ActorCritic_nature_cnn(ActorCritic):
     # CNN from Nature paper.
-    def __init__(self, image_shape, num_outputs, std=-2.3):
+    def __init__(self, image_shape, num_outputs, std=-.5):
         super(ActorCritic, self).__init__()
         self.input_shape = image_shape
         fc_size = outputSize(image_shape, [8,4,3], [4,2,1], [0,0,0])
@@ -131,7 +131,7 @@ class ActorCritic_nature_cnn(ActorCritic):
 
 
 class MultiSensorSimple(nn.Module):
-    def __init__(self, image_shape, sens2_shape, num_outputs, std=-2.3):
+    def __init__(self, image_shape, sens2_shape, num_outputs, std=-.5):
         super(MultiSensorSimple, self).__init__()
         self.input_shape = image_shape
         fc_size = outputSize(image_shape, [8, 4, 3], [4, 2, 1], [0, 0, 0])

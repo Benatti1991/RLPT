@@ -9,28 +9,40 @@ from baselines.common import set_global_seeds
 from Model import ActorCritic_nature_cnn as ActorCritic
 from ppo import PPO
 
+import argparse
 
+parser = argparse.ArgumentParser(description=('Train GymChrono Environment'))
+parser.add_argument('env_name', type=str, help='GymChrono environment name')
+parser.add_argument('-s', '--num_steps', type=int, help='Number of steps to run', default=100)
+parser.add_argument('-e', '--num_envs', type=int, help='Number of parallel environments to use', default=1)
+parser.add_argument('-l', '--learning_rate', type=float, help='Learning rate', default=1e-4)
+parser.add_argument('-m', '--mini_batch_size', type=int, help='Mini batch size', default=5)
+parser.add_argument('-p', '--ppo_epochs', type=int, help='Number of PPO epochs', default=8)
+parser.add_argument('-i', '--save_interval', type=int, help='Number of updates between saving', default=20)
+parser.add_argument('-f', '--max_frames', type=float, help='Maximum number of frames', default=np.inf)
+parser.add_argument('-u', '--max_updates', type=float, help='Maximum number of policy updates', default=500)
+parser.add_argument('-t', '--test_interval', type=float, help='Interval at which mean rewards should be queried', default=20)
+parser.add_argument('--increasing_length', type=float, help='Length at which num_steps should increase each after each update', default=0)
+parser.add_argument('--play_mode',action='store_true', default=False, dest='play_mode', help='Toggle play mode on')
+parser.add_argument('model_path', type=str, help='Where model should be saved to')
 
-modelpath = './ppoCNN_ring.pth'
-play_mode = False
-use_cuda = torch.cuda.is_available()
-device   = torch.device("cuda" if use_cuda else "cpu")
-num_envs = 2
-env_name = "gym_chrono.envs:camera_obstacle_avoidance_custom-v0"
-disp_plot = False
-hidden_size      = 256
-lr               = 1e-4
-# Steps per env
-num_steps        = 100
-mini_batch_size  = num_steps/20
-ppo_epochs       = 8
-threshold_reward = 5000
-save_interval = 20
-max_frames = np.inf
-max_pol_updates = 600
-test_interval = 20
-do_test = True
-increasing_length = 0
+args = parser.parse_args()
+
+env_name =          args.env_name
+num_steps =         args.num_steps
+num_envs =          args.num_envs
+lr =                args.learning_rate
+mini_batch_size  =  args.mini_batch_size
+ppo_epochs =        args.ppo_epochs
+save_interval =     args.save_interval
+max_frames =        args.max_frames
+max_pol_updates =   args.max_updates
+test_interval =     args.test_interval
+increasing_length = args.increasing_length
+play_mode =         args.play_mode
+modelpath =         args.model_path
+use_cuda =          torch.cuda.is_available()
+device   =          torch.device("cuda" if use_cuda else "cpu")
 
 def make_env(env_id, rank, seed=0):
     """
@@ -48,22 +60,18 @@ def make_env(env_id, rank, seed=0):
     set_global_seeds(seed)
     return _init
 
-
-
-
-
 if __name__ == "__main__":
     envs = SubprocVecEnv([make_env(env_name, i) for i in range(num_envs)])
     env = gym.make(env_name)
 
-    num_inputs  = envs.observation_space.shape[0]
-    num_outputs = envs.action_space.shape[0]
+    num_inputs  = envs.observation_space.shape
+    num_outputs = envs.action_space.shape
 
-    model = ActorCritic([45,80], num_outputs).to(device)
+    model = ActorCritic(list(num_inputs[:2]), num_outputs[0]).to(device)
     if os.path.isfile(modelpath):
         model.load_state_dict(torch.load(modelpath))
 
-    ppo = PPO(model=model, envs = envs, device = device,  lr = lr, modelpath = modelpath)
+    ppo = PPO(model=model, envs=envs, device=device,  lr=lr, modelpath=modelpath)
     if not play_mode:
         ppo.ppo_train(num_steps, mini_batch_size, ppo_epochs,
                   max_frames, max_pol_updates,save_interval, increasing_length,

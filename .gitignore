@@ -1,0 +1,6 @@
+*.png
+*.mp4
+*.pth*
+__pycache__/
+Monitor/
+*.bak

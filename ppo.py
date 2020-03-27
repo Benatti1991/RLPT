@@ -86,7 +86,7 @@ class PPO:
             masks     = []
             entropy = 0
 
-            for _ in range(num_steps):
+            for step_number in range(num_steps):
                 if self.tuple_ob:
                     arr_l = []
                     for i in range(state.shape[1]):
@@ -145,8 +145,16 @@ class PPO:
             pol_updates += 1
             if increasing_length:
                 num_steps += pol_updates * increasing_length
+            if np.asarray(mean_rewards)[-1] >= 15000:
+                print('Threshold Met!!!')
+                torch.save(self.model.state_dict(), self.modelpath)
+                print("Policy Saved after " + str(pol_updates) + "updates \n")
+                print(datetime.datetime.now().time())
+                np.save(savepath+'rew', np.asarray(mean_rewards))
+                exit(0)
             if (pol_updates)%save_interval == 0:
                 torch.save(self.model.state_dict(), self.modelpath)
                 print("Policy Saved after " + str(pol_updates) + "updates \n")
                 print(datetime.datetime.now().time())
             np.save(savepath+'rew', np.asarray(mean_rewards))
+            print('Update {0} done. Mean reward is {1}'.format(pol_updates, np.asarray(mean_rewards)[-1]))
