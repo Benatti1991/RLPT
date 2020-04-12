@@ -131,7 +131,7 @@ class ActorCritic_nature_cnn(ActorCritic):
 
 
 class MultiSensorSimple(nn.Module):
-    def __init__(self, image_shape, sens2_shape, num_outputs, std=-.5):
+    def __init__(self, image_shape, sens2_shape, num_outputs, std=-0.5):
         super(MultiSensorSimple, self).__init__()
         self.input_shape = image_shape
         fc_size = outputSize(image_shape, [8, 4, 3], [4, 2, 1], [0, 0, 0])
@@ -171,7 +171,7 @@ class MultiSensorSimple(nn.Module):
 
 
     def forward(self, data):
-        x0 = ((data[0]-127).permute(0, 3, 1, 2) / 255)
+        x0 = ((data[0]-127)/255.).permute(0, 3, 1, 2)
         x1 = self.actor_cnn(x0)#.view(-1)
         x2 = self.actor_fc0(data[1])
         x = torch.cat((x1, x2), dim=1)

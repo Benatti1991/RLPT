@@ -24,6 +24,7 @@ parser.add_argument('-u', '--max_updates', type=float, help='Maximum number of p
 parser.add_argument('-t', '--test_interval', type=float, help='Interval at which mean rewards should be queried', default=20)
 parser.add_argument('--increasing_length', type=float, help='Length at which num_steps should increase each after each update', default=0)
 parser.add_argument('--play_mode',action='store_true', default=False, dest='play_mode', help='Toggle play mode on')
+parser.add_argument('--max_episodes', type=int, help='Maximum episodes to run when in play_mode', default=1)
 parser.add_argument('model_path', type=str, help='Where model should be saved to')
 
 args = parser.parse_args()
@@ -40,6 +41,7 @@ max_pol_updates =   args.max_updates
 test_interval =     args.test_interval
 increasing_length = args.increasing_length
 play_mode =         args.play_mode
+max_episodes =      args.max_episodes
 modelpath =         args.model_path
 use_cuda =          torch.cuda.is_available()
 device   =          torch.device("cuda" if use_cuda else "cpu")
@@ -107,6 +109,8 @@ if __name__ == "__main__":
         print("episode:", i_episode, "reward:", total_reward, "steps:", num_steps)
 
         if num_steps >= max_expert_num:
+            break
+        elif i_episode+1 >= max_episodes:
             break
 """
     if play_mode:
