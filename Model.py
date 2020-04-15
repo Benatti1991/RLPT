@@ -173,7 +173,7 @@ class MultiSensorSimple(nn.Module):
     def forward(self, data):
         x0 = ((data[0]-127)/255.).permute(0, 3, 1, 2)
         x1 = self.actor_cnn(x0)#.view(-1)
-        x2 = self.actor_fc0(data[1])
+        x2 = nn.functional.relu(self.actor_fc0(data[1]))
         x = torch.cat((x1, x2), dim=1)
         x = nn.functional.relu(self.actor_fc1(x))
         x = self.actor_fc2(x)
