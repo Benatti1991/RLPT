@@ -182,7 +182,7 @@ class MultiSensorSimple(nn.Module):
         dist = Normal(mu, std)
 
         y1 = self.critic_cnn(x0)#.view(-1)
-        y2 = self.critic_fc0(data[1])
+        y2 = nn.functional.relu(self.critic_fc0(data[1]))
         y = torch.cat((y1, y2), dim=1)
         y = nn.functional.relu(self.critic_fc1(y))
         value = self.critic_fc2(y)
