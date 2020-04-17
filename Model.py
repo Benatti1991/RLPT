@@ -208,11 +208,11 @@ class MultiSensorLateFusion(nn.Module):
         )
         self.actorMLP = nn.Sequential(
             nn.Linear(sens2_shape, sens2_shape*5),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(sens2_shape*5, (num_outputs+sens2_shape)*5),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear((num_outputs+sens2_shape)*5, num_outputs*5),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(num_outputs*5, num_outputs),
             nn.ReLU()
         )
@@ -234,11 +234,11 @@ class MultiSensorLateFusion(nn.Module):
         )
         self.criticMLP = nn.Sequential(
             nn.Linear(sens2_shape, sens2_shape*5),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(sens2_shape*5, sens2_shape*5),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(sens2_shape*5, 5),
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(5, 1),
             nn.ReLU()
         )
