@@ -6,7 +6,7 @@ from itertools import count
 
 from baselines.common.vec_env import SubprocVecEnv
 from baselines.common import set_global_seeds
-from Model import MultiSensorSimple as ActorCritic
+from Model import MultiSensorLateFusion as ActorCritic
 from ppo import PPO
 
 import argparse
