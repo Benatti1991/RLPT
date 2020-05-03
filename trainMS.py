@@ -89,8 +89,8 @@ if __name__ == "__main__":
     for i_episode in count():
         if not play_mode:
             break
-        state = env.reset()
         env.play_mode = True
+        state = env.reset()
         done = False
         total_reward = 0
 

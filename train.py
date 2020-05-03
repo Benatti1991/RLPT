@@ -6,7 +6,7 @@ from itertools import count
 
 from baselines.common.vec_env import SubprocVecEnv
 from baselines.common import set_global_seeds
-from Model import ActorCritic_nature_cnn as ActorCritic
+from Model import ActorCriticPCoady as ActorCritic
 from ppo import PPO
 
 import argparse
@@ -71,7 +71,12 @@ if __name__ == "__main__":
     if num_inputs == None:
         num_inputs = envs.observation_space[0].shape
 
-    model = ActorCritic(list(num_inputs[:2]), num_outputs[0]).to(device)
+    if len(num_inputs) == 3:
+        num_inputs = list(num_inputs[:2])
+    else:
+        num_inputs = num_inputs[0]
+
+    model = ActorCritic(num_inputs, num_outputs[0]).to(device)
     if os.path.isfile(modelpath):
         model.load_state_dict(torch.load(modelpath))
 
@@ -90,8 +95,8 @@ if __name__ == "__main__":
     for i_episode in count():
         if not play_mode:
             break
-        state = env.reset()
         env.play_mode = True
+        state = env.reset()
         done = False
         total_reward = 0
 
