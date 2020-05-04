@@ -271,7 +271,6 @@ class MultiSensorLSTM(nn.Module):
         super(MultiSensorLSTM, self).__init__()
         self.input_shape = image_shape
         fc_size = outputSize(image_shape, [8, 4, 3], [4, 2, 1], [0, 0, 0])
-
         self.actor_cnn = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=8, stride=4),
             nn.ReLU(),
@@ -280,23 +279,12 @@ class MultiSensorLSTM(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             Flatten(),
             nn.ReLU(),
-            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs),
-            nn.ReLU()
+            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs * 5),
+
         )
-        self.actorMLP = nn.Sequential(
-            nn.Linear(sens2_shape, sens2_shape*5),
-            nn.LSTM(),
-            nn.Linear(sens2_shape*5, (num_outputs+sens2_shape)*5),
-            nn.LSTM(),
-            nn.Linear((num_outputs+sens2_shape)*5, num_outputs*5),
-            nn.LSTM(),
-            nn.Linear(num_outputs*5, num_outputs),
-            nn.ReLU()
-        )
-        self.actorOut = nn.Sequential(
-            nn.Linear(num_outputs * 2, num_outputs),
-            nn.Tanh()
-        )
+        self.actor_LSTM = nn.LSTM(sens2_shape, num_outputs * 5, num_layers=1)
+        self.actor_fc1 = nn.Linear(num_outputs * 10, num_outputs * 5)
+        self.actor_fc2 = nn.Linear(num_outputs * 5, num_outputs)
 
         self.critic_cnn = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=8, stride=4),
@@ -306,39 +294,31 @@ class MultiSensorLSTM(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             Flatten(),
             nn.ReLU(),
-            nn.Linear(fc_size[0] * fc_size[1] * 64, 1),
-            nn.ReLU()
+            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs * 5),
+
         )
-        self.criticMLP = nn.Sequential(
-            nn.Linear(sens2_shape, sens2_shape*5),
-            nn.ReLU(),
-            nn.Linear(sens2_shape*5, sens2_shape*5),
-            nn.ReLU(),
-            nn.Linear(sens2_shape*5, 5),
-            nn.ReLU(),
-            nn.Linear(5, 1),
-            nn.ReLU()
-        )
-        self.criticOut = nn.Sequential(
-            nn.Linear(2, num_outputs),
-        )
+        self.critic_LSTM = nn.LSTM(sens2_shape, num_outputs * 5, num_layers=1)
+        self.critic_fc1 = nn.Linear(num_outputs * 10, num_outputs * 5)
+        self.critic_fc2 = nn.Linear(num_outputs * 5, 1)
 
         self.log_std = nn.Parameter(torch.ones(1, num_outputs) * std)
         self.apply(init_weights)
 
-
     def forward(self, data):
         x0 = ((data[0]-127)/255.).permute(0, 3, 1, 2)
-        x1 = self.actor_cnn(x0)
-        x2 = self.actorMLP(data[1])
-        x = torch.cat((x1, x2), dim=1)
-        mu = self.actorOut(x)
+        x1 = self.actor_cnn(x0)#.view(-1)
+        x2 = self.actor_LSTM(data[1].view(1, data[1].shape[0], data[1].shape[1]))
+        x = torch.cat((x1, x2[0].view(data[1].shape[0],-1)), dim=1)
+        x = nn.functional.relu(self.actor_fc1(x))
+        x = self.actor_fc2(x)
+        mu = torch.tanh(x)
         std = self.log_std.exp().expand_as(mu)
         dist = Normal(mu, std)
 
-        y1 = self.critic_cnn(x0)
-        y2 = self.criticMLP(data[1])
-        y = torch.cat((y1, y2), dim=1)
-        value = self.criticOut(y)
+        y1 = self.critic_cnn(x0)#.view(-1)
+        y2 = self.critic_LSTM(data[1].view(1, data[1].shape[0], data[1].shape[1]))
+        y = torch.cat((y1, y2[0].view(data[1].shape[0],-1)), dim=1)
+        y = nn.functional.relu(self.critic_fc1(y))
+        value = self.critic_fc2(y)
 
         return dist, value
