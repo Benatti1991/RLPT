@@ -49,6 +49,8 @@ device   =          torch.device("cuda" if use_cuda else "cpu")
 
 if args.arch == 'MultiSensorLateFusion':
     from Model import MultiSensorLateFusion as ActorCritic
+elif args.arch == 'MultiSensorEarlyFusion':
+    from Model import MultiSensorEarlyFusion as ActorCritic
 elif args.arch == 'MultiSensorSimple':
     from Model import MultiSensorSimple as ActorCritic
 else:
