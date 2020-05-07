@@ -6,7 +6,6 @@ from itertools import count
 
 from baselines.common.vec_env import SubprocVecEnv
 from baselines.common import set_global_seeds
-from Model import MultiSensorLateFusion as ActorCritic
 from ppo import PPO
 
 import argparse
@@ -25,7 +24,9 @@ parser.add_argument('-t', '--test_interval', type=float, help='Interval at which
 parser.add_argument('--increasing_length', type=float, help='Length at which num_steps should increase each after each update', default=0)
 parser.add_argument('--play_mode',action='store_true', default=False, dest='play_mode', help='Toggle play mode on')
 parser.add_argument('--max_episodes', type=int, help='Maximum episodes to run when in play_mode', default=1)
+parser.add_argument('-a', '--arch', type=str, dest='arch', help='Actor Critic model type', default='MultiSensorLateFusion')
 parser.add_argument('model_path', type=str, help='Where model should be saved to')
+parser.add_argument('--onnx_converter',action='store_true', default=False, dest='onnx_converter', help='Toggle the onnx converter on')
 
 args = parser.parse_args()
 
@@ -46,6 +47,14 @@ modelpath =         args.model_path
 use_cuda =          torch.cuda.is_available()
 device   =          torch.device("cuda" if use_cuda else "cpu")
 
+if args.arch == 'MultiSensorLateFusion':
+    from Model import MultiSensorLateFusion as ActorCritic
+elif args.arch == 'MultiSensorSimple':
+    from Model import MultiSensorSimple as ActorCritic
+else:
+    print('Model arch type not recognized. Exitting...')
+    exit(1)
+
 def make_env(env_id, rank, seed=0):
     """
     Utility function for multiprocessed env.
@@ -63,6 +72,8 @@ def make_env(env_id, rank, seed=0):
     return _init
 
 if __name__ == "__main__":
+
+    
     envs = SubprocVecEnv([make_env(env_name, i) for i in range(num_envs)])
     env = gym.make(env_name)
 
@@ -71,6 +82,13 @@ if __name__ == "__main__":
     num_outputs = envs.action_space.shape
 
     model = ActorCritic([img_size[1], img_size[0]], sensor_size[0], num_outputs[0]).to(device)
+
+    if args.onnx_converter and os.path.isfile(modelpath):
+        model.load_state_dict(torch.load(modelpath))
+
+        model.export("rl_SCM_simple.onnx")
+        exit(1)
+
     if os.path.isfile(modelpath):
         model.load_state_dict(torch.load(modelpath))
 

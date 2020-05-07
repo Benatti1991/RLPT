@@ -3,4 +3,7 @@
 *.pth*
 __pycache__/
 Monitor/
+logs/
+*.zip
 *.bak
+*.onnx

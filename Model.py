@@ -189,6 +189,74 @@ class MultiSensorSimple(nn.Module):
 
         return dist, value
 
+    def export(self,filename):
+        inference_model = MultiSensorSimpleInference(self.input_shape,self.sens2_shape,self.num_outputs).cuda()
+        # inference_model.parameters() = self.actor_cnn.parameters()
+
+        inference_model.load_state_dict(self.state_dict())
+
+        tmp_input = [torch.ones(1, self.input_shape[0], self.input_shape[1], 3).cuda(), torch.ones(1, self.sens2_shape).cuda()]
+        print("EXPORTING ONNX MODEL...")
+        torch.onnx.export(inference_model,               # model being run
+                          tmp_input,
+                          filename,                  # where to save the model (can be a file or file-like object)
+                          export_params=True,        # store the trained parameter weights inside the model file
+                          opset_version=10,          # the ONNX version to export the model to
+                          do_constant_folding=True,  # whether to execute constant folding for optimization
+                          input_names = ['input1',"input2"],   # input layer names
+                          output_names = ["output"]) # output layer names
+        print("MODEL EXPORTED!")
+        pass
+
+class MultiSensorSimpleInference(nn.Module):
+    def __init__(self, image_shape, sens2_shape, num_outputs, std=-0.5):
+        super(MultiSensorSimpleInference, self).__init__()
+        self.input_shape = image_shape
+        fc_size = outputSize(image_shape, [8, 4, 3], [4, 2, 1], [0, 0, 0])
+        self.actor_cnn = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            Flatten(),
+            nn.ReLU(),
+            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs * 5),
+
+        )
+        self.actor_fc0 = nn.Linear(sens2_shape, num_outputs * 5)
+        self.actor_fc1 = nn.Linear(num_outputs * 10, num_outputs * 5)
+        self.actor_fc2 = nn.Linear(num_outputs * 5, num_outputs)
+
+        self.critic_cnn = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            Flatten(),
+            nn.ReLU(),
+            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs * 5),
+
+        )
+        self.critic_fc0 = nn.Linear(sens2_shape, num_outputs * 5)
+        self.critic_fc1 = nn.Linear(num_outputs * 10, num_outputs * 5)
+        self.critic_fc2 = nn.Linear(num_outputs * 5, 1)
+
+
+        self.log_std = nn.Parameter(torch.ones(1, num_outputs) * std)
+
+    def forward(self, data):
+        x0 = ((data[0]-127)/255.).permute(0, 3, 1, 2)
+        x1 = self.actor_cnn(x0)#.view(-1)
+        x2 = nn.functional.relu(self.actor_fc0(data[1]))
+        x = torch.cat((x1, x2), dim=1)
+        x = nn.functional.relu(self.actor_fc1(x))
+        x = self.actor_fc2(x)
+        mu = torch.tanh(x)
+
+        return mu
+
 class MultiSensorLateFusion(nn.Module):
     def __init__(self, image_shape, sens2_shape, num_outputs, std=-0.5):
         super(MultiSensorLateFusion, self).__init__()
@@ -265,6 +333,95 @@ class MultiSensorLateFusion(nn.Module):
         value = self.criticOut(y)
 
         return dist, value
+
+    def export(self,filename):
+        inference_model = MultiSensorLateFusionInference(self.input_shape,self.sens2_shape,self.num_outputs).cuda()
+        # inference_model.parameters() = self.actor_cnn.parameters()
+
+        inference_model.load_state_dict(self.state_dict())
+
+        tmp_input = [torch.ones(1, self.input_shape[0], self.input_shape[1], 3).cuda(), torch.ones(1, self.sens2_shape).cuda()]
+        print("EXPORTING ONNX MODEL...")
+        torch.onnx.export(inference_model,               # model being run
+                          tmp_input,
+                          filename,                  # where to save the model (can be a file or file-like object)
+                          export_params=True,        # store the trained parameter weights inside the model file
+                          opset_version=10,          # the ONNX version to export the model to
+                          do_constant_folding=True,  # whether to execute constant folding for optimization
+                          input_names = ['input1',"input2"],   # input layer names
+                          output_names = ["output"]) # output layer names
+        print("MODEL EXPORTED!")
+        pass
+
+class MultiSensorLateFusionInference(nn.Module):
+    def __init__(self, image_shape, sens2_shape, num_outputs, std=-0.5):
+        super(MultiSensorLateFusionInference, self).__init__()
+        self.input_shape = image_shape
+        fc_size = outputSize(image_shape, [8, 4, 3], [4, 2, 1], [0, 0, 0])
+
+        self.actor_cnn = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            Flatten(),
+            nn.ReLU(),
+            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs),
+            nn.ReLU()
+        )
+        self.actorMLP = nn.Sequential(
+            nn.Linear(sens2_shape, sens2_shape*5),
+            nn.ReLU(),
+            nn.Linear(sens2_shape*5, (num_outputs+sens2_shape)*5),
+            nn.ReLU(),
+            nn.Linear((num_outputs+sens2_shape)*5, num_outputs*5),
+            nn.ReLU(),
+            nn.Linear(num_outputs*5, num_outputs),
+            nn.ReLU()
+        )
+        self.actorOut = nn.Sequential(
+            nn.Linear(num_outputs * 2, num_outputs),
+            nn.Tanh()
+        )
+
+        self.critic_cnn = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            Flatten(),
+            nn.ReLU(),
+            nn.Linear(fc_size[0] * fc_size[1] * 64, 1),
+            nn.ReLU()
+        )
+        self.criticMLP = nn.Sequential(
+            nn.Linear(sens2_shape, sens2_shape*5),
+            nn.ReLU(),
+            nn.Linear(sens2_shape*5, sens2_shape*5),
+            nn.ReLU(),
+            nn.Linear(sens2_shape*5, 5),
+            nn.ReLU(),
+            nn.Linear(5, 1),
+            nn.ReLU()
+        )
+        self.criticOut = nn.Sequential(
+            nn.Linear(2, num_outputs),
+        )
+
+        self.log_std = nn.Parameter(torch.ones(1, num_outputs) * std)
+        self.apply(init_weights)
+
+
+    def forward(self, data):
+        x0 = ((data[0]-127)/255.).permute(0, 3, 1, 2)
+        x1 = self.actor_cnn(x0)
+        x2 = self.actorMLP(data[1])
+        x = torch.cat((x1, x2), dim=1)
+        mu = self.actorOut(x)
+
+        return mu
 
 class MultiSensorLSTM(nn.Module):
     def __init__(self, image_shape, sens2_shape, num_outputs, std=-0.5):
