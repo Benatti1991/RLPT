@@ -145,13 +145,13 @@ class PPO:
             pol_updates += 1
             if increasing_length:
                 num_steps += pol_updates * increasing_length
-            if np.asarray(mean_rewards)[-1] >= 15000:
-                print('Threshold Met!!!')
-                torch.save(self.model.state_dict(), self.modelpath)
-                print("Policy Saved after " + str(pol_updates) + "updates \n")
-                print(datetime.datetime.now().time())
-                np.save(savepath+'rew', np.asarray(mean_rewards))
-                exit(0)
+            # if np.asarray(mean_rewards)[-1] >= 15000:
+            #     print('Threshold Met!!!')
+            #     torch.save(self.model.state_dict(), self.modelpath)
+            #     print("Policy Saved after " + str(pol_updates) + "updates \n")
+            #     print(datetime.datetime.now().time())
+            #     np.save(savepath+'rew', np.asarray(mean_rewards))
+            #     exit(0)
             if (pol_updates)%save_interval == 0:
                 torch.save(self.model.state_dict(), self.modelpath)
                 print("Policy Saved after " + str(pol_updates) + "updates \n")
