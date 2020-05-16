@@ -84,11 +84,10 @@ if __name__ == "__main__":
     num_outputs = envs.action_space.shape
 
     model = ActorCritic([img_size[1], img_size[0]], sensor_size[0], num_outputs[0]).to(device)
-
     if args.onnx_converter and os.path.isfile(modelpath):
         model.load_state_dict(torch.load(modelpath))
 
-        model.export("rl_SCM_simple.onnx")
+        model.export("gvsets_early_fusion.onnx")
         exit(1)
 
     if os.path.isfile(modelpath):

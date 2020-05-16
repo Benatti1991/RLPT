@@ -479,10 +479,13 @@ class MultiSensorLSTM(nn.Module):
         value = self.critic_fc2(y)
 
         return dist, value
+
 class MultiSensorEarlyFusion(nn.Module):
     def __init__(self, image_shape, sens2_shape, num_outputs, std=-0.5):
         super(MultiSensorEarlyFusion, self).__init__()
         self.input_shape = image_shape
+        self.sens2_shape = sens2_shape
+        self.num_outputs = num_outputs
         fc_size = outputSize(image_shape, [8, 4, 3], [4, 2, 1], [0, 0, 0])
         self.actor_cnn = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=8, stride=4),
@@ -524,6 +527,8 @@ class MultiSensorEarlyFusion(nn.Module):
 
 
     def forward(self, data):
+        length = data[0].size()[1]
+        data[0] = torch.reshape(data[0], (1, self.input_shape[1], self.input_shape[0], 3))
         x0 = ((data[0]-127)/255.).permute(0, 3, 1, 2)
         x1 = self.actor_cnn(x0)#.view(-1)
         x2 = nn.functional.relu(self.actor_fc0(data[1]))
@@ -544,3 +549,81 @@ class MultiSensorEarlyFusion(nn.Module):
         value = self.critic_fc4(y)
 
         return dist, value
+
+    def export(self,filename):
+        inference_model = MultiSensorEarlyFusionInference(self.input_shape,self.sens2_shape,self.num_outputs).cuda()
+        # inference_model.parameters() = self.actor_cnn.parameters()
+
+        inference_model.load_state_dict(self.state_dict())
+
+        tmp_input = [torch.ones(1, self.input_shape[0], self.input_shape[1], 3).cuda(), torch.ones(1, self.sens2_shape).cuda()]
+        print("EXPORTING ONNX MODEL...")
+        torch.onnx.export(inference_model,               # model being run
+                          tmp_input,
+                          filename,                  # where to save the model (can be a file or file-like object)
+                          export_params=True,        # store the trained parameter weights inside the model file
+                          opset_version=10,          # the ONNX version to export the model to
+                          do_constant_folding=True,  # whether to execute constant folding for optimization
+                          input_names = ['input1',"input2"],   # input layer names
+                          output_names = ["output"]) # output layer names
+        print("MODEL EXPORTED!")
+        pass
+
+class MultiSensorEarlyFusionInference(nn.Module):
+    def __init__(self, image_shape, sens2_shape, num_outputs, std=-0.5):
+        super(MultiSensorEarlyFusionInference, self).__init__()
+        self.input_shape = image_shape
+        self.sens2_shape = sens2_shape
+        self.num_outputs = num_outputs
+        fc_size = outputSize(image_shape, [8, 4, 3], [4, 2, 1], [0, 0, 0])
+        self.actor_cnn = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            Flatten(),
+            nn.ReLU(),
+            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs * 5),
+
+        )
+        self.actor_fc0 = nn.Linear(sens2_shape, num_outputs * 5)
+        self.actor_fc1 = nn.Linear(num_outputs * 10, num_outputs * 20)
+        self.actor_fc2 = nn.Linear(num_outputs * 20, num_outputs * 10)
+        self.actor_fc3 = nn.Linear(num_outputs * 10, num_outputs * 5)
+        self.actor_fc4 = nn.Linear(num_outputs * 5, num_outputs)
+
+        self.critic_cnn = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=8, stride=4),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            Flatten(),
+            nn.ReLU(),
+            nn.Linear(fc_size[0] * fc_size[1] * 64, num_outputs * 5),
+
+        )
+        self.critic_fc0 = nn.Linear(sens2_shape, num_outputs * 5)
+        self.critic_fc1 = nn.Linear(num_outputs * 10, num_outputs * 20)
+        self.critic_fc2 = nn.Linear(num_outputs * 20, num_outputs * 10)
+        self.critic_fc3 = nn.Linear(num_outputs * 10, num_outputs * 5)
+        self.critic_fc4 = nn.Linear(num_outputs * 5, 1)
+
+
+        self.log_std = nn.Parameter(torch.ones(1, num_outputs) * std)
+        self.apply(init_weights)
+
+    def forward(self, data):
+        length = data[0].size()[1]
+        data[0] = torch.reshape(data[0], (1, self.input_shape[1], self.input_shape[0], 3))
+        x0 = ((data[0]-127)/255.).permute(0, 3, 1, 2)
+        x1 = self.actor_cnn(x0)#.view(-1)
+        x2 = nn.functional.relu(self.actor_fc0(data[1]))
+        x = torch.cat((x1, x2), dim=1)
+        x = nn.functional.relu(self.actor_fc1(x))
+        x = nn.functional.relu(self.actor_fc2(x))
+        x = nn.functional.relu(self.actor_fc3(x))
+        mu = torch.tanh(self.actor_fc4(x))
+
+        return mu
