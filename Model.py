@@ -527,8 +527,6 @@ class MultiSensorEarlyFusion(nn.Module):
 
 
     def forward(self, data):
-        length = data[0].size()[1]
-        data[0] = torch.reshape(data[0], (1, self.input_shape[1], self.input_shape[0], 3))
         x0 = ((data[0]-127)/255.).permute(0, 3, 1, 2)
         x1 = self.actor_cnn(x0)#.view(-1)
         x2 = nn.functional.relu(self.actor_fc0(data[1]))
@@ -556,7 +554,7 @@ class MultiSensorEarlyFusion(nn.Module):
 
         inference_model.load_state_dict(self.state_dict())
 
-        tmp_input = [torch.ones(1, self.input_shape[0], self.input_shape[1], 3).cuda(), torch.ones(1, self.sens2_shape).cuda()]
+        tmp_input = [torch.ones(1, self.input_shape[1], self.input_shape[0], 3).cuda(), torch.ones(1, self.sens2_shape).cuda()]
         print("EXPORTING ONNX MODEL...")
         torch.onnx.export(inference_model,               # model being run
                           tmp_input,
@@ -615,8 +613,7 @@ class MultiSensorEarlyFusionInference(nn.Module):
         self.apply(init_weights)
 
     def forward(self, data):
-        length = data[0].size()[1]
-        data[0] = torch.reshape(data[0], (1, self.input_shape[1], self.input_shape[0], 3))
+        # data[0] = torch.reshape(data[0], (1, self.input_shape[1], self.input_shape[0], 3))
         x0 = ((data[0]-127)/255.).permute(0, 3, 1, 2)
         x1 = self.actor_cnn(x0)#.view(-1)
         x2 = nn.functional.relu(self.actor_fc0(data[1]))
