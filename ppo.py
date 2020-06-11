@@ -8,7 +8,7 @@ import Utils
 
 class PPO:
     def __init__(self,
-        model,
+        models, # 2 element (actor & critic) list
         envs,
         device,
         modelpath,
@@ -16,8 +16,8 @@ class PPO:
         tuple_ob = False):
 
         self.envs = envs
-        self.optimizer = optim.Adam(model.parameters(), lr=lr)
-        self.model = model
+        self.optimizers = [optim.Adam(model.parameters(), lr=lr)  for model in models]
+        self.models = models
         self.modelpath = modelpath
         self.device = device
         self.tuple_ob = tuple_ob
@@ -49,7 +49,8 @@ class PPO:
     def ppo_update(self, ppo_epochs, mini_batch_size, states, actions, log_probs, returns, advantages, clip_param=0.2):
         for _ in range(ppo_epochs):
             for state, action, old_log_probs, return_, advantage in self.ppo_iter(mini_batch_size, states, actions, log_probs, returns, advantages):
-                dist, value = self.model(state)
+                dist = self.models[0](state)
+                value = self.models[1](state)
                 entropy = dist.entropy().mean()
                 new_log_probs = dist.log_prob(action)
 
@@ -60,11 +61,11 @@ class PPO:
                 actor_loss  = - torch.min(surr1, surr2).mean()
                 critic_loss = (return_ - value).pow(2).mean()
 
-                loss = 0.5 * critic_loss + actor_loss - 0.001 * entropy
-
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+                losses = [actor_loss, critic_loss]
+                for optimizer, loss in zip(self.optimizers, losses):
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
 
     def ppo_train(self, num_steps, mini_batch_size, ppo_epochs = 8,
                   max_frames = np.inf, max_pol_updates = 200,save_interval = 10, increasing_length = 0,
@@ -96,7 +97,8 @@ class PPO:
                     state = [torch.FloatTensor(arr).to(self.device) for arr in arr_l]
                 else:
                     state = torch.FloatTensor(state).to(self.device)
-                dist, value = self.model(state)
+                dist = self.models[0](state)
+                value = self.models[1](state)
 
                 action = dist.sample()
                 next_state, reward, done, _ = self.envs.step(action.cpu().numpy())
@@ -128,7 +130,7 @@ class PPO:
                 next_state = [torch.FloatTensor(arr).to(self.device) for arr in arr_l]
             else:
                 next_state = torch.FloatTensor(next_state).to(self.device)
-            _, next_value = self.model(next_state)
+            next_value = self.models[1](next_state)
             returns = self.compute_gae(next_value, rewards, masks, values)
 
             returns   = torch.cat(returns).detach()
@@ -153,7 +155,8 @@ class PPO:
             #     np.save(savepath+'rew', np.asarray(mean_rewards))
             #     exit(0)
             if (pol_updates)%save_interval == 0:
-                torch.save(self.model.state_dict(), self.modelpath)
+                net = ['actor', 'critic']
+                [torch.save(model.state_dict(), self.modelpath+ac+".pth") for model, ac in zip(self.models, net)]
                 print("Policy Saved after " + str(pol_updates) + "updates \n")
                 print(datetime.datetime.now().time())
             np.save(savepath+'rew', np.asarray(mean_rewards))

@@ -75,12 +75,12 @@ if __name__ == "__main__":
         num_inputs = list(num_inputs[:2])
     else:
         num_inputs = num_inputs[0]
+    ac = ['actor', 'critic']
+    model = [ActorCritic(num_inputs, num_outputs[0], AC).to(device) for AC in ac]
+    if os.path.isfile(modelpath+"actor"):
+        [model.load_state_dict(torch.load(modelpath+AC+".pth")) for AC in ac]
 
-    model = ActorCritic(num_inputs, num_outputs[0]).to(device)
-    if os.path.isfile(modelpath):
-        model.load_state_dict(torch.load(modelpath))
-
-    ppo = PPO(model=model, envs=envs, device=device,  lr=lr, modelpath=modelpath)
+    ppo = PPO(models=model, envs=envs, device=device,  lr=lr, modelpath=modelpath)
     if not play_mode:
         ppo.ppo_train(num_steps, mini_batch_size, ppo_epochs,
                   max_frames, max_pol_updates,save_interval, increasing_length,
@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
         while not done:
             state = torch.FloatTensor(state).unsqueeze(0).to(device)
-            dist, _ = model(state)
+            dist = model[0](state)
             action = dist.sample().cpu().numpy()[0]
             next_state, reward, done, _ = env.step(action)
             state = next_state
