@@ -77,8 +77,8 @@ if __name__ == "__main__":
         num_inputs = num_inputs[0]
     ac = ['actor', 'critic']
     model = [ActorCritic(num_inputs, num_outputs[0], AC).to(device) for AC in ac]
-    if os.path.isfile(modelpath+"actor"):
-        [model.load_state_dict(torch.load(modelpath+AC+".pth")) for AC in ac]
+    if os.path.isfile(modelpath+"actor.pth"):
+        [mod.load_state_dict(torch.load(modelpath+AC+".pth")) for AC, mod in zip(ac, model)]
 
     ppo = PPO(models=model, envs=envs, device=device,  lr=lr, modelpath=modelpath)
     if not play_mode:
