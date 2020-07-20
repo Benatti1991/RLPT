@@ -75,7 +75,7 @@ def make_env(env_id, rank, seed=0):
 
 if __name__ == "__main__":
 
-    
+
     envs = SubprocVecEnv([make_env(env_name, i) for i in range(num_envs)])
     env = gym.make(env_name)
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         while not done:
             state = [torch.FloatTensor(s).unsqueeze(0).to(device) for s in state]
             dist, _ = model(state)
-            action = dist.sample().cpu().numpy()[0]
+            action = dist.mean.cpu().detach().numpy()[0]
             next_state, reward, done, _ = env.step(action)
             state = next_state
             total_reward += reward
