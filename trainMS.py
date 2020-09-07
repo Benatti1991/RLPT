@@ -25,6 +25,7 @@ parser.add_argument('--increasing_length', type=float, help='Length at which num
 parser.add_argument('--play_mode',action='store_true', default=False, dest='play_mode', help='Toggle play mode on')
 parser.add_argument('--max_episodes', type=int, help='Maximum episodes to run when in play_mode', default=1)
 parser.add_argument('-a', '--arch', type=str, dest='arch', help='Actor Critic model type', default='MultiSensorLateFusion')
+parser.add_argument('--save_path', type=str, help='Where logging should be saved to', default='./Monitor/')
 parser.add_argument('model_path', type=str, help='Where model should be saved to')
 parser.add_argument('--onnx_converter',action='store_true', default=False, dest='onnx_converter', help='Toggle the onnx converter on')
 
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     if not play_mode:
         ppo.ppo_train(num_steps, mini_batch_size, ppo_epochs,
                   max_frames, max_pol_updates,save_interval, increasing_length,
-                  test_interval, savepath='./Monitor/')
+                  test_interval, savepath=args.save_path)
 
 
     # <h1>Saving trajectories for GAIL</h1>
