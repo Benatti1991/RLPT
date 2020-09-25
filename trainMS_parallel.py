@@ -4,8 +4,8 @@ import torch
 import os
 from itertools import count
 
-from baselines.common.vec_env import SubprocVecEnv
-from baselines.common import set_global_seeds
+from stable_baselines.common.vec_env import SubprocVecEnv
+from stable_baselines.common import set_global_seeds
 from ppo import PPO
 
 import argparse
@@ -25,7 +25,6 @@ parser.add_argument('--increasing_length', type=float, help='Length at which num
 parser.add_argument('--play_mode',action='store_true', default=False, dest='play_mode', help='Toggle play mode on')
 parser.add_argument('--max_episodes', type=int, help='Maximum episodes to run when in play_mode', default=1)
 parser.add_argument('-a', '--arch', type=str, dest='arch', help='Actor Critic model type', default='MultiSensorLateFusion')
-parser.add_argument('--save_path', type=str, help='Where logging should be saved to', default='./Monitor/')
 parser.add_argument('model_path', type=str, help='Where model should be saved to')
 parser.add_argument('--onnx_converter',action='store_true', default=False, dest='onnx_converter', help='Toggle the onnx converter on')
 
@@ -58,7 +57,7 @@ else:
     print('Model arch type not recognized. Exitting...')
     exit(1)
 
-def make_env(env_id, rank, seed=0):
+def make_env(env_id, rank, num_envs, seed=0):
     """
     Utility function for multiprocessed env.
 
@@ -69,17 +68,15 @@ def make_env(env_id, rank, seed=0):
     """
     def _init():
         env = gym.make(env_id)
+        env.rank = rank
+        env.num_envs = num_envs
         env.seed(seed + rank)
-        env.CPU = [int(os.cpu_count() / num_envs), 1, 1]
         return env
     set_global_seeds(seed)
     return _init
 
 if __name__ == "__main__":
-
-
-    envs = SubprocVecEnv([make_env(env_name, i) for i in range(num_envs)])
-    env = gym.make(env_name)
+    envs = SubprocVecEnv([make_env(env_name, i, num_envs) for i in range(num_envs)])
 
     img_size  = envs.observation_space[0].shape
     sensor_size  = envs.observation_space[1].shape
@@ -95,50 +92,48 @@ if __name__ == "__main__":
     if os.path.isfile(modelpath):
         model.load_state_dict(torch.load(modelpath))
 
-    ppo = PPO(model=model, envs=envs, device=device,  lr=lr, modelpath=modelpath, tuple_ob=True)
     if not play_mode:
+        ppo = PPO(model=model, envs=envs, device=device,  lr=lr, modelpath=modelpath, tuple_ob=True)
         ppo.ppo_train(num_steps, mini_batch_size, ppo_epochs,
                   max_frames, max_pol_updates,save_interval, increasing_length,
-                  test_interval, savepath=args.save_path)
+                  test_interval, savepath='./Monitor/')
 
+    if not play_mode:
+        exit()
 
-    # <h1>Saving trajectories for GAIL</h1>
-    max_expert_num = 50000
-    num_steps = 0
-    #expert_traj = []
+    envs.set_attr('play_mode', True)
+    state = envs.reset()
+    done = np.zeros(num_envs)
+    total_reward = np.zeros(num_envs)
 
-    for i_episode in count():
-        if not play_mode:
-            break
-        env.play_mode = True
-        state = env.reset()
-        done = False
-        total_reward = 0
+    i_episode = np.zeros(num_envs)
 
-        while not done:
-            state = [torch.FloatTensor(s).unsqueeze(0).to(device) for s in state]
-            dist, _ = model(state)
-            action = dist.mean.cpu().detach().numpy()[0]
-            next_state, reward, done, _ = env.step(action)
-            state = next_state
-            total_reward += reward
-            print(str(total_reward))
-            #expert_traj.append(np.hstack([state, action]))
-            num_steps += 1
-            env.render()
+    while True:
+        arr_l = []
+        for i in range(len(state)):
+            arr = np.stack(state[i])
+            arr_l.append(arr)
 
-        print("episode:", i_episode, "reward:", total_reward, "steps:", num_steps)
+        state = [torch.FloatTensor(s).to(device) for s in arr_l]
 
-        if num_steps >= max_expert_num:
-            break
-        elif i_episode+1 >= max_episodes:
-            break
-"""
-    if play_mode:
+        dist, _ = model(state)
+        action = dist.mean.cpu().detach().numpy()
+        next_state, reward, done, _ = envs.step(action)
+        state = next_state
+        total_reward += reward
 
-        expert_traj = np.stack(expert_traj)
-        print()
-        print(expert_traj.shape)
-        print()
-        np.save("expert_traj.npy", expert_traj)
-"""
+        for i,temp_done in enumerate(done):
+            if temp_done:
+                print("episode:", i_episode[i], "reward:", total_reward[i], "steps:", num_steps)
+
+                total_reward[i] = 0
+                i_episode[i] += 1
+
+                if sum(i_episode) > max_episodes:
+                    print('Exceeded maximum of episodes.')
+                    exit()
+
+        print(str(total_reward))
+
+        num_steps += 1
+        # envs.render('human')
