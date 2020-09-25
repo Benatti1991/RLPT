@@ -69,6 +69,7 @@ def make_env(env_id, rank, seed=0):
     def _init():
         env = gym.make(env_id)
         env.seed(seed + rank)
+        env.CPU = [int(os.cpu_count() / num_envs), 1, 1]
         return env
     set_global_seeds(seed)
     return _init
