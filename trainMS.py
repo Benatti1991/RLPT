@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import os
 from itertools import count
-
+import psutil
 from baselines.common.vec_env import SubprocVecEnv
 from baselines.common import set_global_seeds
 from ppo import PPO
@@ -70,7 +70,8 @@ def make_env(env_id, rank, seed=0):
     def _init():
         env = gym.make(env_id)
         env.seed(seed + rank)
-        env.CPU = [int(os.cpu_count() / num_envs), 1, 1]
+        env.CPU = [int(psutil.cpu_count(logical=False) / num_envs), 1, 1]
+        print(str(psutil.cpu_count(logical=False)))
         return env
     set_global_seeds(seed)
     return _init
